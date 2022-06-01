@@ -1,13 +1,12 @@
-import bcrypt
-from flask import Flask, render_template, request, redirect, session
 import sqlite3
 from sqlite3 import Error
-from flask_bcrypt import Bcrypt
-# from pip._internal.network import session
-# from pip._vendor.urllib3 import request
+
+import flask_bcrypt
+from flask import Flask, render_template, request, redirect, session
 
 DB_NAME = "dictionary.db"
 app = Flask(__name__)
+app.secret_key = "breaker"
 
 
 def create_connection(db_file):
@@ -24,14 +23,14 @@ def create_connection(db_file):
 
 def is_logged_in():
     if session.get('email') is None:
+        print("not logged in")
         return False
-    else:
-        return True
-
+    print("logged in")
+    return True
 
 @app.route('/')
 def render_homepage():
-    return render_template("home.html")
+    return render_template("home.html", logged_in=is_logged_in())
 
 
 @app.route('/dictionary')
@@ -43,14 +42,18 @@ def render_dictionary():
     results = cur.fetchall()
     print(results)
     con.close()
-    return render_template("dictionary.html", dictionary=results)
+    return render_template("dictionary.html", dictionary=results, logged_in=is_logged_in())
+
+@app.route('/logout')
+def log_out():
+    print(list(session.keys()))
+    [session.pop(key) for key in list(session.keys())]
+    print(list(session.keys()))
+    return redirect('/')
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def render_login():
-    if is_logged_in():
-        return redirect('/')
-    print("in login")
     if request.method == 'POST':
         email = request.form['email'].strip().lower()
         password = request.form['password'].strip()
@@ -69,11 +72,17 @@ def render_login():
         except IndexError:
             return redirect("/login?error=Email+invalid+or+password+incorrect")
 
-    if not bcrypt.check_password_hash(db_password, password)
-        return render_template('/login', logged_in = is_logged_in())
+        if not flask_bcrypt.check_password_hash(db_password, password):
+            return redirect(request.referrer + "?error=Email+invalid+or+password+incorrect")
 
+        session['email'] = email
+        session['user_id'] = user_id
+        session['first_name'] = first_name
+        print(session)
+        return redirect('/')
 
-    return render_template("login.html")
+    return render_template('/login.html', logged_in=is_logged_in())
+
 
 @app.route('/signup', methods=['GET', 'POST'])
 def render_signup():
@@ -88,23 +97,24 @@ def render_signup():
         if password != password2:
             return redirect('/signup?error=Passwords+do+not+match')
 
-        if len password < 8:
+        if len(password) < 8:
             return redirect('/signup?error=Password+must+be+8+characters+or+more')
 
-        hashed_password = bcrypt.generate_password_hash(password)
+        hashed_password = flask_bcrypt.generate_password_hash(password)
 
         con = create_connection(DB_NAME)
         query = "INSERT INTO users(id, fname, lname, email, password) VALUES (NULL, ?, ?, ?, ?)"
         cur = con.cursor()
 
         try:
-            cur.execute(query,(fname, lname, email, hashed_password))
+            cur.execute(query, (fname, lname, email, hashed_password))
         except sqlite3.IntegrityError:
             return redirect('/signup?error=email+is+already+in+use')
         con.commit()
         con.close()
 
     return render_template("signup.html")
+
 
 
 app.run(host='0.0.0.0', debug=True)

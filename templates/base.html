@@ -23,7 +23,12 @@
 			<ul>
                 <li><a href="/">Home</a></li>
                 <li><a href="/dictionary">Dictionary</a></li>
-                <li><a href="/login">Log in</a></li>
+                {% if logged_in %}
+                    <a href="logout">Log out</a>
+                {% else %}
+                    <a href="/login">Login</a>
+                    <a href="signup">Sign up</a>
+                {% endif %}
 
 			</ul>
 		</nav>
