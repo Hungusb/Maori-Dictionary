@@ -91,8 +91,15 @@ def render_signup():
         fname = request.form.get('fname').strip().lower()
         lname = request.form.get('lname').strip().lower()
         email = request.form.get('email').strip().lower()
+        editor = request.form.get('editor').strip().lower()
         password = request.form.get('pass')
         password2 = request.form.get('pass2')
+
+        if editor == 'teacher':
+            editor_value = 1
+        else:
+            editor_value = 0
+
 
         if password != password2:
             return redirect('/signup?error=Passwords+do+not+match')
@@ -103,11 +110,11 @@ def render_signup():
         hashed_password = flask_bcrypt.generate_password_hash(password)
 
         con = create_connection(DB_NAME)
-        query = "INSERT INTO users(id, fname, lname, email, password) VALUES (NULL, ?, ?, ?, ?)"
+        query = "INSERT INTO users(id, fname, lname, email, password, editor) VALUES (NULL, ?, ?, ?, ?, ?)"
         cur = con.cursor()
 
         try:
-            cur.execute(query, (fname, lname, email, hashed_password))
+            cur.execute(query, (fname, lname, email, hashed_password, editor_value))
         except sqlite3.IntegrityError:
             return redirect('/signup?error=email+is+already+in+use')
         con.commit()
